@@ -1,0 +1,323 @@
+---
+title: "Pokamon "
+author: "Team White"
+#output: "http"
+---
+
+# Pokémon Dataset Analysis
+
+## Overview
+
+This document explores various attributes of Pokémon using data from the provided dataset. We'll create visualizations, analyze characteristics, and uncover interesting insights.
+
+### Dataset Description
+
+- **Name**: The English name of the Pokémon
+- **Japanese Name**: The Original Japanese name of the Pokémon
+- **Pokedex Number**: The entry number of the Pokémon in the National Pokedex
+- **Percentage Male**: The percentage of the male species (blank if genderless)
+- **Type 1**: The Primary Type of the Pokémon
+- **Type 2**: The Secondary Type of the Pokémon
+- **Classification**: The Pokémon's classification as described by the Sun and Moon Pokedex
+- **Height (m)**: Height of the Pokémon in meters
+- **Weight (kg)**: The Weight of the Pokémon in kilograms
+- **Capture Rate**: Capture Rate of the Pokémon
+- **Base Egg Steps**: The number of steps required to hatch an egg of the Pokémon
+- **Abilities**: A stringified list of abilities that the Pokémon is capable of having
+- **Experience Growth**: The Experience Growth of the Pokémon
+- **Base Happiness**: Base Happiness of the Pokémon
+- **Against_?**: Eighteen features that denote the amount of damage taken against an attack of a particular type
+- **HP**: The Base HP of the Pokémon
+- **Attack**: The Base Attack of the Pokémon
+- **Defense**: The Base Defense of the Pokémon
+- **Special Attack**: The Base Special Attack of the Pokémon
+- **Special Defense**: The Base Special Defense of the Pokémon
+- **Speed**: The Base Speed of the Pokémon
+- **Generation**: The numbered generation in which the Pokémon was first introduced
+- **Is Legendary**: Denotes if the Pokémon is legendary
+
+
+```{r load-packages, message=TRUE}
+library(tidyverse)
+library(randomForest)
+library(viridis)
+library(rgl)
+library(reshape2)
+```
+
+# Load necessary libraries
+library(ggplot2)
+
+```{r}
+# Assign variable to my data
+url <- "repo-structure/data/pokemon.csv"
+url2 <- "repo-structure/data/pokemon2.csv"
+pokemon_data <- read.csv(url)
+pokemon_data2 <- read.csv(url2)
+merged_pokemon_data <-merge(pokemon_data, pokemon_data2, by.x="Name", by.y="name")
+
+glimpse(merged_pokemon_data)
+```
+```{r}
+# Sample data (replace with your actual dataset)
+merged_pokemon_data_frame <- data.frame(
+  name = c("Pikachu", "Charizard", "Bulbasaur", "Squirtle", "Jigglypuff"),
+  height_m = c(0.4, 1.7, 0.7, 0.5, 0.5),
+  weight_kg = c(6, 90.5, 6.9, 9, 5.5)
+)
+```
+# Scatter plot: Height vs. Weight
+```{r}
+ggplot(merged_pokemon_data_frame, aes(x = height_m, y = weight_kg)) +
+  geom_point(aes(color = as.factor(height_m > median(height_m))), size = 3) +
+  scale_color_manual(values = c("blue", "red"), 
+                     name = "Height relative to median", 
+                     labels = c("Below or equal to median", "Above median")) +
+  geom_smooth(method = "lm", se = FALSE, color = "black", linetype = "dashed") +
+  labs(title = "Pokémon Height vs. Weight",
+       subtitle = "Each point represents a Pokémon",
+       caption = "Data source: Pokémon database",
+       x = "Height (meters)",
+       y = "Weight (kilograms)") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"))
+
+```
+
+## Bar Plot: Pokémon Types Frequency
+
+```{r}
+# Reshape the data
+reshaped_data <- merged_pokemon_data %>%
+ gather(key = "type_key", value = "type_value", "Type_1", "Type2") %>%
+  filter(!is.na(type_value))
+
+
+# install the viridis package
+# install.packages("viridis")
+
+# Load the viridis package
+library(viridis)
+
+# Plot
+ggplot(reshaped_data, aes(x = type_value, fill = type_value)) +
+  geom_bar(show.legend = TRUE) +
+  scale_fill_viridis_d(name = "Pokémon Type", option = "viridis", end = 0.9) +
+  labs(title = "Frequency of Pokémon Types",
+       subtitle = "Each bar represents a Pokémon type",
+       caption = "Data source: Pokémon database",
+       x = "Type",
+       y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"),
+        axis.text.x = element_text(face = "italic", color = "blue", size = 8, angle = 45, hjust = 1))
+
+```
+
+## Histogram: Pokémon HP Distribution
+
+```{r}
+
+# Plot
+ggplot(merged_pokemon_data, aes(x = hp, fill = ..count..)) +
+  geom_histogram(binwidth = 10, color = "black", show.legend = TRUE) +
+  scale_fill_gradient(name = "count", low = "blue", high = "red") +
+  labs(title = "Distribution of Pokémon HP",
+       subtitle = "Each bar represents a range of HP",
+       caption = "Data source: Pokémon database",
+       x = "HP",
+       y = "Count") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"))
+
+```
+
+## Box Plot: Pokémon Attack by Type
+
+```{r}
+
+# Reshape the data
+reshaped_data <- merged_pokemon_data %>%
+  gather(key = "type_key", value = "type_value", "type1", "type2") %>%
+  filter(!is.na(type_value))
+
+# Plot
+ggplot(reshaped_data, aes(x = type_value, y = attack, fill = type_value)) +
+  geom_boxplot(show.legend = TRUE) +
+  scale_fill_viridis_d(name = "Pokémon Type", option = "viridis", end = 0.9) +
+  labs(title = "Distribution of Pokémon Attack by Type",
+       subtitle = "Each box represents the range of attack values for a Pokémon type",
+       caption = "Data source: Pokémon database",
+       x = "Type",
+       y = "Attack") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"),
+        axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+```
+
+#Scatter Plot: Pokémon Special Attack vs. Defense
+
+```{r}
+#ggplot(merged_pokemon_data, aes(x = "sp_attack", y = "defense")) +
+ # geom_point(color = "orange") +
+  #labs(title = "Pokémon Special Attack vs. Defense",
+   #    x = "Special Attack",
+    #   y = "Defense") +
+  #theme_minimal()
+
+# Plot
+ggplot(merged_pokemon_data, aes(x = sp_attack, y = defense, color = type1)) +
+  geom_point() +
+  scale_color_viridis_d(name = "Pokémon Type", option = "viridis", end = 0.9) +
+  labs(title = "Pokémon Special Attack vs. Defense",
+       subtitle = "Each point represents a Pokémon",
+       caption = "Data source: Pokémon database",
+       x = "Special Attack",
+       y = "Defense") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"),
+        axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+```
+
+## Pie Chart: Gender Distribution
+
+```{r}
+# Calculate the percentage of females for each type
+merged_pokemon_data$percentage_female <- 100 - merged_pokemon_data$percentage_male
+
+# Reshape the data
+reshaped_data <- merged_pokemon_data %>%
+  gather(key = "gender", value = "percentage", percentage_male, percentage_female)
+
+# Plot
+ggplot(reshaped_data, aes(x = type1, y = percentage, fill = gender)) +
+  geom_bar(stat = "identity", position = "stack") +
+  scale_fill_brewer(palette = "Set2", name = "Gender") +
+  labs(title = "Gender Distribution of Pokémon Types",
+       subtitle = "Each bar represents a Pokémon type",
+       caption = "Data source: Pokémon database",
+       x = "Type",
+       y = "Percentage") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"),
+        axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels
+
+```
+
+##  Line Plot: Pokémon Experience Growth Over Generations
+
+```{r}
+
+# Plot
+ggplot(merged_pokemon_data, aes(x = generation, y = experience_growth, color = type1, group = type1)) +
+  geom_line(size = 1.5) +  # Increase the size value as needed
+  scale_color_viridis_d(option = "inferno", name = "Pokémon Type") +
+  labs(title = "Pokémon Experience Growth Over Generations",
+       subtitle = "Each line represents a Pokémon type",
+       caption = "Data source: Pokémon database",
+       x = "Generation",
+       y = "Experience Growth") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"))
+
+```
+
+## Density Plot: Pokémon Speed Distribution
+
+```{r}
+# Create a density plot of Pokémon speed
+ggplot(merged_pokemon_data, aes(x = speed, fill = type1)) +  # Map 'type1' to fill aesthetic
+  geom_density(alpha = 0.5) +  # Set transparency to see overlapping areas
+  scale_fill_viridis_d(option = "inferno", name = "Pokémon Type") +  # Use a vivid color palette and add a legend
+  labs(title = "Pokémon Speed Distribution by Type",
+       subtitle = "Each color represents a different Pokémon type",
+       caption = "Data source: Pokémon database",
+       x = "Speed",
+       y = "Density") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"))
+```
+
+## Heatmap: Damage Taken Against Different Types
+
+```{r}
+
+# Assuming damage_matrix is your data frame
+# Melt the data frame to a format suitable for ggplot
+melted_merged_pokemon_data <- melt(merged_pokemon_data)
+
+# Create a heatmap
+ggplot(data = melted_merged_pokemon_data, aes(x = type1, y = type2, fill = value)) +
+  geom_tile() +
+  scale_fill_viridis_c(option = "inferno", name = "Damage Value") +  # Use a vivid color palette and add a legend
+  labs(title = "Heatmap of Damage Taken Against Different Types",
+       subtitle = "Each cell represents the damage taken by a type (y-axis) from a type (x-axis)",
+       caption = "Data source: Pokémon database",
+       x = "Attacking Type",
+       y = "Defending Type") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5, face = "italic"),
+        plot.caption = element_text(hjust = 1, face = "italic"))
+
+```
+
+## Bar Plot: Legendary vs. Non-Legendary Pokémon
+```{r}
+
+# Assuming 'type' is the column in your data that represents the type of Pokémon
+ggplot(merged_pokemon_data, aes(x = factor(type1), fill = factor(is_legendary))) +
+  geom_bar() +
+  labs(title = "Distribution of Pokémon Types",
+       x = "Type of Pokémon",
+       y = "Count",
+       fill = "Is Legendary") +  # This adds a label to the legend
+  scale_fill_manual(values = c("gray", "gold"), 
+                    labels = c("Non-Legendary", "Legendary")) +  # This specifies the labels for the legend
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))  # This rotates the x-axis labels
+
+
+```
+
+## Correlation Matrix Plot
+```{r}
+
+# Calculate correlation matrix
+cor_matrix <- cor(merged_pokemon_data[, c("hp", "attack", "defense", "sp_attack", "sp_defense", "speed")])
+
+# Reshape the correlation matrix
+cor_melt <- melt(cor_matrix)
+
+# Create the plot
+ggplot(data = cor_melt, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile() +
+  scale_fill_gradient(low = "blue", high = "red") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+#cor_matrix <- cor(merged_pokemon_data[, c("hp", "attack", "defense", "sp_attack", "sp_defense", "speed")])
+#ggplot(data = cor_matrix, aes(x = rownames(cor_matrix), y = colnames(cor_matrix))) +
+  #geom_tile(aes(fill = value)) +
+  #scale_fill_gradient(low = "blue", high = "red") +
+  #theme_minimal() +
+  #theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
